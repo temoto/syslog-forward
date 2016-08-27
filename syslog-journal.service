@@ -1,0 +1,13 @@
+[Unit]
+Description=Copy syslog messages from network to systemd journal
+Documentation=https://github.com/temoto/syslog-journal
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/syslog-journal
+Timeout=5s
+Restart=on-failure
+RestartTimeout=5s
+
+[Install]
+WantedBy=multi-user.target
