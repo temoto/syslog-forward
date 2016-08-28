@@ -16,9 +16,10 @@ import (
 
 type tmsg struct {
 	ReceiveTime time.Time
-	Timestamp   time.Time
 	Addr        net.Addr
 	Priority    byte
+	Timestamp   time.Time
+	Hostname    string
 	Tag         string
 	Content     string
 }
@@ -33,11 +34,6 @@ type tconfig struct {
 	tweakJournalBufferSize int
 	queue                  chan tmsg
 }
-
-var (
-	errUnknownMessageFormat = errors.New("unknown message format")
-	reSyslogFormat1         = regexp.MustCompile(`^\<([0-9]{1,3})\>([A-Za-z]{3} [ 0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]) ([^:]+): (.+)?\x00$`)
-)
 
 func main() {
 	daemon.SdNotify("READY=0\nSTATUS=init\n")
@@ -124,23 +120,45 @@ func readTCP(config *tconfig) {
 	// }
 }
 
+var (
+	errUnknownMessageFormat = errors.New("unknown message format")
+	// https://tools.ietf.org/html/rfc5424
+	reSyslogFormatV1     = regexp.MustCompile(`^\<([0-9]{1,3})\>1 ([-0-9]{10}T[:0-9]{8}(?:\.\d+)[-+Z][:0-9]{5}) ([^ ]+) ([^ ]+) (?:[^ ]+) (?:[^ ]+) (?:\[.*?\]) (.+)$`)
+	reSyslogFormatOther1 = regexp.MustCompile(`^\<([0-9]{1,3})\>([A-Za-z]{3} [ 0-9][0-9] [:0-9]{8}) ([^:]+): (.+)?\x00$`)
+)
+
 func (msg *tmsg) Parse(b []byte) (err error) {
-	match := reSyslogFormat1.FindStringSubmatch(string(b))
-	if len(match) == 5 {
+	if m := reSyslogFormatV1.FindStringSubmatch(string(b)); len(m) == 6 {
 		var x uint64
-		x, err = strconv.ParseUint(match[1], 10, 8)
+		x, err = strconv.ParseUint(m[1], 10, 8)
 		if err != nil {
 			return err
 		}
-		msg.Priority = byte(x)
+		msg.Priority = byte(x) % 8
 
-		msg.Timestamp, err = time.Parse(time.Stamp, match[2])
+		msg.Timestamp, err = time.Parse("2006-01-02T15:04:05.999999Z07:00", m[2])
 		if err != nil {
 			return err
 		}
 
-		msg.Tag = match[3]
-		msg.Content = match[4]
+		msg.Hostname = m[3]
+		msg.Tag = m[4]
+		msg.Content = m[5]
+	} else if m := reSyslogFormatOther1.FindStringSubmatch(string(b)); len(m) == 5 {
+		var x uint64
+		x, err = strconv.ParseUint(m[1], 10, 8)
+		if err != nil {
+			return err
+		}
+		msg.Priority = byte(x) % 8
+
+		msg.Timestamp, err = time.Parse(time.Stamp, m[2])
+		if err != nil {
+			return err
+		}
+
+		msg.Tag = m[3]
+		msg.Content = m[4]
 	} else {
 		return errUnknownMessageFormat
 	}
