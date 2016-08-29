@@ -8,18 +8,22 @@ Some configuration is available via command line.
     % ./syslog-journal -help
 
     Usage of ./syslog-journal:
-      -format string
-            Fields: ReceiveTime, Timestamp, Addr, Priority, Tag, Content.
-            See syntax at https://golang.org/pkg/text/template/
-            (default "from={{.Addr}} {{.Tag}}: {{.Content}}")
-      -journal-buffer-size int
-             (default 32768)
-      -listen-udp string
-             (default ":514")
-      -queue-length int
-             (default 100)
-      -udp-buffer-size int
-             (default 16384)
+        -default-priority int
+              Used when priority can't be inferred from message. (default 6)
+        -force-priority int
+              Overwrite message priority. -1 to pass as is. (default -1)
+        -format string
+              Fields: ReceiveTime, Timestamp, Addr, Priority, Tag, Content.
+              See syntax at https://golang.org/pkg/text/template/
+              (default "from={{.Addr}} {{.Tag}}: {{.Content}}")
+        -journal-buffer-size int
+               (default 32768)
+        -listen-udp string
+              Empty string to disable. (default ":514")
+        -queue-length int
+              Store parsed messages in memory before blocking on Journal sending. (default 100)
+        -udp-buffer-size int
+               (default 16384)
 
 Why
 ---
